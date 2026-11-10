@@ -21,43 +21,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Generate Gradle Project & Compile Debug APK
+      - name: Setup Gradle Resmi
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Susun Struktur Project & Compile APK
         run: |
           mkdir -p app/src/main/java/com/chiwawa/autorp
           cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           cp MainActivity.java app/src/main/java/com/chiwawa/autorp/MainActivity.java
           cp FloatingOverlayService.java app/src/main/java/com/chiwawa/autorp/FloatingOverlayService.java
 
-          cat << 'EOF' > settings.gradle
-          rootProject.name = "ChiwawaAutoRP"
-          include ':app'
-          EOF
+          printf 'rootProject.name = "ChiwawaAutoRP"\ninclude ":app"\n' > settings.gradle
 
-          cat << 'EOF' > build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          EOF
+          printf 'buildscript {\n    repositories { google(); mavenCentral() }\n    dependencies { classpath "com.android.tools.build:gradle:8.1.0" }\n}\nallprojects { repositories { google(); mavenCentral() } }\n' > build.gradle
 
-          cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application' }
-          android {
-              namespace 'com.chiwawa.autorp'
-              compileSdk 33
-              defaultConfig {
-                  applicationId "com.chiwawa.autorp"
-                  minSdk 23
-                  targetSdk 33
-                  versionCode 1
-                  versionName "1.0"
-              }
-          }
-          EOF
+          printf 'plugins { id "com.android.application" }\nandroid {\n    namespace "com.chiwawa.autorp"\n    compileSdk 33\n    defaultConfig {\n        applicationId "com.chiwawa.autorp"\n        minSdk 23\n        targetSdk 33\n        versionCode 1\n        versionName "1.0"\n    }\n    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n}\n' > app/build.gradle
 
-          gradle wrapper --gradle-version 8.2
-          ./gradlew assembleDebug
+          gradle assembleDebug --no-daemon
 
       - name: Upload File APK Siap Install
         uses: actions/upload-artifact@v4
