@@ -23,44 +23,30 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Terima Lisensi Android SDK Bawaan & Compile APK
+      - name: Terima Lisensi Android SDK & Compile APK
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
           mkdir -p app/src/main/java/com/chiwawa/autorp
           cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           cp MainActivity.java app/src/main/java/com/chiwawa/autorp/MainActivity.java
           cp FloatingOverlayService.java app/src/main/java/com/chiwawa/autorp/FloatingOverlayService.java
-
-          printf 'rootProject.name = "ChiwawaAutoRP"
-include ":app"
-' > settings.gradle
-
-          printf 'buildscript {
-    repositories { google(); mavenCentral() }
-    dependencies { classpath "com.android.tools.build:gradle:8.1.0" }
-}
-allprojects { repositories { google(); mavenCentral() } }
-' > build.gradle
-
-          printf 'plugins { id "com.android.application" }
-android {
-    namespace "com.chiwawa.autorp"
-    compileSdk 34
-    defaultConfig {
-        applicationId "com.chiwawa.autorp"
-        minSdk 23
-        targetSdk 33
-        versionCode 2
-        versionName "2.0"
-    }
-    lintOptions {
-        checkReleaseBuilds false
-        abortOnError false
-    }
-}
-' > app/build.gradle
-
+          echo 'rootProject.name = "ChiwawaAutoRP"' > settings.gradle
+          echo 'include ":app"' >> settings.gradle
+          echo 'buildscript { repositories { google(); mavenCentral() }; dependencies { classpath "com.android.tools.build:gradle:8.1.0" } }' > build.gradle
+          echo 'allprojects { repositories { google(); mavenCentral() } }' >> build.gradle
+          echo 'plugins { id "com.android.application" }' > app/build.gradle
+          echo 'android {' >> app/build.gradle
+          echo '    namespace "com.chiwawa.autorp"' >> app/build.gradle
+          echo '    compileSdk 34' >> app/build.gradle
+          echo '    defaultConfig {' >> app/build.gradle
+          echo '        applicationId "com.chiwawa.autorp"' >> app/build.gradle
+          echo '        minSdk 23' >> app/build.gradle
+          echo '        targetSdk 33' >> app/build.gradle
+          echo '        versionCode 2' >> app/build.gradle
+          echo '        versionName "2.0"' >> app/build.gradle
+          echo '    }' >> app/build.gradle
+          echo '    lintOptions { checkReleaseBuilds false; abortOnError false }' >> app/build.gradle
+          echo '}' >> app/build.gradle
           gradle assembleDebug --no-daemon
 
       - name: Upload File APK Siap Install
