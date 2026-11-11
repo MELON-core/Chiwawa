@@ -51,12 +51,17 @@ public class MainActivity extends Activity {
     private TextView ssProofBanner;
     private ImageView ssPreviewImg;
     private TextView lastRpBox;
-    private Button saveGayaBtn;
+    private Button mainActionBtn;
+    private Button resetAndCheckBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        prefs = getSharedPreferences("chiwawa_v3_prefs", MODE_PRIVATE);
+        prefs = getSharedPreferences("chiwawa_autorp_prefs", MODE_PRIVATE);
+
+        if (prefs.getString("api_key", "").trim().isEmpty()) {
+            prefs.edit().putString("api_key", "DEFAULT_MELA").putString("server_url", DEFAULT_SERVER).apply();
+        }
 
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.READ_MEDIA_IMAGES}, 101);
@@ -70,10 +75,10 @@ public class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(34, 40, 34, 50);
+        root.setPadding(34, 38, 34, 48);
         scroll.addView(root);
 
-        // HEADER SIMPLE
+        // HEADER
         LinearLayout header = createCard();
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -86,7 +91,7 @@ public class MainActivity extends Activity {
         header.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         statusBadge = new TextView(this);
-        statusBadge.setText("🟢 Siap Pakai");
+        statusBadge.setText("🟢 DEFAULT_MELA • /me");
         statusBadge.setTextColor(Color.parseColor("#00f5d4"));
         statusBadge.setTextSize(11.5f);
         statusBadge.setTypeface(Typeface.DEFAULT_BOLD);
@@ -95,101 +100,81 @@ public class MainActivity extends Activity {
 
         addSpacer(root, 22);
 
-        // CARD 1: HANYA API KEY & CUSTOM GAYA (TANPA DROPDOWN RIBET)
-        LinearLayout cfgCard = createCard();
-        addLabel(cfgCard, "🔑 KODE API KEY VIP");
+        // CARD UTAMA: INPUT KEY, CUSTOM GAYA, & HANYA 2 TOMBOL!
+        LinearLayout mainCard = createCard();
+        addLabel(mainCard, "🔑 KODE API KEY VIP");
         keyInput = createInput("Contoh: DEFAULT_MELA", false);
         keyInput.setText(prefs.getString("api_key", "DEFAULT_MELA"));
-        cfgCard.addView(keyInput);
+        mainCard.addView(keyInput);
 
-        addSpacer(cfgCard, 22);
-        addLabel(cfgCard, "✨ CUSTOM GAYA BAHASA SENDIRI");
-        customGayaInput = createInput("Contoh: Kamu adalah seorang supir taxi yang ramah...", true);
+        addSpacer(mainCard, 20);
+        addLabel(mainCard, "✨ CUSTOM GAYA BAHASA SENDIRI");
+        customGayaInput = createInput("Ketik gaya peranmu (Contoh: Kamu adalah seorang supir taxi yang ramah)...", true);
         customGayaInput.setText(prefs.getString("custom_gaya", "Kamu adalah seorang supir taxi yang ramah"));
-        cfgCard.addView(customGayaInput);
+        mainCard.addView(customGayaInput);
 
-        addSpacer(cfgCard, 18);
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        addSpacer(mainCard, 24);
 
-        saveGayaBtn = createButton("💾 SIMPAN CUSTOM GAYA", "#00f5d4", "#041f18");
-        LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.4f);
-        lp1.setMargins(0, 0, 12, 0);
-        saveGayaBtn.setOnClickListener(v -> syncCustomGayaToServer(false));
-        btnRow.addView(saveGayaBtn, lp1);
-
-        Button resetMeBtn = createButton("🔄 RESET /ME", "#1e293b", "#e2e8f0");
-        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.8f);
-        resetMeBtn.setOnClickListener(v -> resetTurnToMe());
-        btnRow.addView(resetMeBtn, lp2);
-
-        cfgCard.addView(btnRow);
-        root.addView(cfgCard);
-
-        addSpacer(root, 22);
-
-        // CARD 2: TOMBOL NGAMBANG IN-GAME
-        LinearLayout floatCard = createCard();
-        addLabel(floatCard, "📸 TOMBOL SS NGAMBANG (1-KLIK DI SA-MP)");
-
-        Button startBtn = createButton("🚀 MUNCULKAN TOMBOL SS NGAMBANG", "#10b981", "#041f18");
-        startBtn.setOnClickListener(v -> {
-            syncCustomGayaToServer(true);
-            startFloatingCaptureService();
+        // TOMBOL 1: SIMPAN CUSTOM GAYA & AKTIFKAN TOMBOL NGAMBANG 📸
+        mainActionBtn = createButton("🚀 SIMPAN GAYA & MUNCULKAN TOMBOL SS", "#10b981", "#041f18");
+        mainActionBtn.setOnClickListener(v -> {
+            saveAndSyncToServer(true);
+            requestAndStartFloatingBubble();
         });
-        floatCard.addView(startBtn);
+        mainCard.addView(mainActionBtn);
 
-        addSpacer(floatCard, 14);
-        Button stopBtn = createButton("❌ MATIKAN TOMBOL NGAMBANG", "#ef4444", "#ffffff");
-        stopBtn.setOnClickListener(v -> {
+        addSpacer(mainCard, 14);
+
+        // TOMBOL 2: RESET GILIRAN KE /ME & MATIKAN/REFRESH OVERLAY
+        resetAndCheckBtn = createButton("🔄 RESET GILIRAN KE /ME (ATAU MATIKAN SS)", "#1e293b", "#e2e8f0");
+        resetAndCheckBtn.setOnClickListener(v -> {
             stopService(new Intent(this, FloatingOverlayService.class));
-            Toast.makeText(this, "Tombol ngambang dimatikan.", Toast.LENGTH_SHORT).show();
+            resetTurnToMeAndRefresh();
         });
-        floatCard.addView(stopBtn);
-        root.addView(floatCard);
+        mainCard.addView(resetAndCheckBtn);
 
+        root.addView(mainCard);
         addSpacer(root, 22);
 
-        // CARD 3: DEBUGGER BUKTI SCREENSHOT
+        // CARD DEBUGGER BUKTI SCREENSHOT
         LinearLayout debugCard = createCard();
-        addLabel(debugCard, "🛠️ VISUAL DEBUGGER (CEK BUKTI SS)");
+        addLabel(debugCard, "📸 BUKTI SCREENSHOT & HASIL AI TERAKHIR");
 
         ssProofBanner = new TextView(this);
-        ssProofBanner.setText("⏳ Belum ada SS baru. Tap tombol 📸 saat di game!");
+        ssProofBanner.setText("⏳ Tap 1x tombol 📸 di game = Scan SS | Tahan 1 detik = Reset /me");
         ssProofBanner.setTextColor(Color.parseColor("#38bdf8"));
         ssProofBanner.setTextSize(12f);
         ssProofBanner.setTypeface(Typeface.DEFAULT_BOLD);
-        ssProofBanner.setPadding(24, 20, 24, 20);
+        ssProofBanner.setPadding(24, 18, 24, 18);
         GradientDrawable bannerBg = new GradientDrawable();
         bannerBg.setColor(Color.parseColor("#0b1120"));
-        bannerBg.setCornerRadius(20f);
+        bannerBg.setCornerRadius(18f);
         bannerBg.setStroke(2, Color.parseColor("#1e293b"));
         ssProofBanner.setBackground(bannerBg);
         debugCard.addView(ssProofBanner);
 
-        addSpacer(debugCard, 14);
+        addSpacer(debugCard, 12);
         ssPreviewImg = new ImageView(this);
         ssPreviewImg.setBackgroundColor(Color.BLACK);
         ssPreviewImg.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        LinearLayout.LayoutParams imgLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 380);
-        debugCard.addView(ssPreviewImg, imgLp);
+        debugCard.addView(ssPreviewImg, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 340));
 
-        addSpacer(debugCard, 14);
+        addSpacer(debugCard, 12);
         lastRpBox = new TextView(this);
-        lastRpBox.setText("/me (Hasil RP terakhir akan tampil di sini)");
+        lastRpBox.setText("/me (Tap kotak ini untuk menyalin ulang hasil RP terakhir)");
         lastRpBox.setTextColor(Color.parseColor("#fde047"));
         lastRpBox.setTextSize(12.5f);
         lastRpBox.setTypeface(Typeface.MONOSPACE);
-        lastRpBox.setPadding(24, 22, 24, 22);
+        lastRpBox.setPadding(24, 20, 24, 20);
         GradientDrawable rpBg = new GradientDrawable();
         rpBg.setColor(Color.parseColor("#060911"));
-        rpBg.setCornerRadius(20f);
+        rpBg.setCornerRadius(18f);
         rpBg.setStroke(2, Color.parseColor("#1e293b"));
         lastRpBox.setBackground(rpBg);
         lastRpBox.setOnClickListener(v -> {
             ClipboardManager cb = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             cb.setPrimaryClip(ClipData.newPlainText("AutoRP", lastRpBox.getText().toString()));
-            Toast.makeText(this, "✅ Kalimat RP disalin!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "✅ Kalimat RP disalin ke Clipboard!", Toast.LENGTH_SHORT).show();
         });
         debugCard.addView(lastRpBox);
 
@@ -207,9 +192,23 @@ public class MainActivity extends Activity {
         loadServerProfile();
     }
 
+    private void saveToBothPrefs(String key, String rule) {
+        String safeKey = (key == null || key.trim().isEmpty()) ? "DEFAULT_MELA" : key.trim().toUpperCase();
+        String safeRule = (rule == null || rule.trim().isEmpty()) ? "Kamu adalah seorang supir taxi yang ramah" : rule.trim();
+
+        String[] prefNames = new String[]{"chiwawa_autorp_prefs", "chiwawa_v3_prefs"};
+        for (String pName : prefNames) {
+            getSharedPreferences(pName, MODE_PRIVATE).edit()
+                .putString("server_url", DEFAULT_SERVER)
+                .putString("api_key", safeKey)
+                .putString("custom_gaya", safeRule)
+                .apply();
+        }
+    }
+
     private void refreshLocalDebugPreview() {
-        String statusNote = prefs.getString("last_ss_status", "⏳ Belum ada SS baru.");
-        boolean ssOk = prefs.getBoolean("last_ss_ok", false);
+        String statusNote = prefs.getString("last_ss_status", "⏳ Tap 1x tombol 📸 di game = Scan SS | Tahan 1 detik = Reset /me");
+        boolean ssOk = prefs.getBoolean("last_ss_ok", true);
         String lastRp = prefs.getString("last_rp_output", "/me (Belum ada riwayat RP)");
 
         ssProofBanner.setText(statusNote);
@@ -219,15 +218,13 @@ public class MainActivity extends Activity {
         File localDebugFile = new File(getFilesDir(), "last_capture_debug.jpg");
         if (localDebugFile.exists()) {
             Bitmap bm = BitmapFactory.decodeFile(localDebugFile.getAbsolutePath());
-            if (bm != null) {
-                ssPreviewImg.setImageBitmap(bm);
-            }
+            if (bm != null) ssPreviewImg.setImageBitmap(bm);
         }
     }
 
     private void loadServerProfile() {
-        final String key = keyInput.getText().toString().trim().toUpperCase();
-        if (key.isEmpty()) return;
+        final String key = keyInput.getText().toString().trim().isEmpty() ? "DEFAULT_MELA" : keyInput.getText().toString().trim().toUpperCase();
+        saveToBothPrefs(key, customGayaInput.getText().toString());
 
         new Thread(() -> {
             try {
@@ -242,14 +239,14 @@ public class MainActivity extends Activity {
 
                 JSONObject res = new JSONObject(sb.toString());
                 if (res.optBoolean("valid", false)) {
-                    final String cName = res.optString("charName", "VIP");
+                    final String cName = res.optString("charName", "Mela Valenzuela");
                     final String nextCmd = res.optString("nextCmd", "/me");
                     final String serverRule = res.optString("customStyleRule", "");
                     new Handler(Looper.getMainLooper()).post(() -> {
                         statusBadge.setText("🟢 " + cName + " • " + nextCmd);
                         if (!serverRule.isEmpty()) {
                             customGayaInput.setText(serverRule);
-                            prefs.edit().putString("custom_gaya", serverRule).apply();
+                            saveToBothPrefs(key, serverRule);
                         }
                     });
                 }
@@ -257,20 +254,10 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void syncCustomGayaToServer(boolean silent) {
-        final String key = keyInput.getText().toString().trim().toUpperCase();
+    private void saveAndSyncToServer(boolean silent) {
+        final String key = keyInput.getText().toString().trim().isEmpty() ? "DEFAULT_MELA" : keyInput.getText().toString().trim().toUpperCase();
         final String rule = customGayaInput.getText().toString().trim();
-
-        prefs.edit()
-            .putString("server_url", DEFAULT_SERVER)
-            .putString("api_key", key)
-            .putString("custom_gaya", rule)
-            .apply();
-
-        if (!silent) {
-            saveGayaBtn.setText("⏳ MENYIMPAN...");
-            saveGayaBtn.setEnabled(false);
-        }
+        saveToBothPrefs(key, rule);
 
         new Thread(() -> {
             try {
@@ -287,53 +274,30 @@ public class MainActivity extends Activity {
                 OutputStream os = conn.getOutputStream();
                 os.write(body.toString().getBytes("UTF-8"));
                 os.close();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                br.close();
-
-                JSONObject res = new JSONObject(sb.toString());
-                final boolean ok = res.optBoolean("ok", false);
-                final String charName = res.optString("charName", "VIP");
-
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    saveGayaBtn.setText("💾 SIMPAN CUSTOM GAYA");
-                    saveGayaBtn.setEnabled(true);
-                    if (ok) {
-                        statusBadge.setText("🟢 " + charName + " • /me");
-                        if (!silent) Toast.makeText(this, "✨ Custom Gaya berhasil disimpan & aktif!", Toast.LENGTH_SHORT).show();
-                    } else if (!silent) {
-                        Toast.makeText(this, "❌ Key tidak ditemukan di server!", Toast.LENGTH_LONG).show();
-                    }
-                });
-            } catch (Exception e) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    saveGayaBtn.setText("💾 SIMPAN CUSTOM GAYA");
-                    saveGayaBtn.setEnabled(true);
-                });
-            }
+                conn.getInputStream().close();
+            } catch (Exception ignored) {}
         }).start();
     }
 
-    private void resetTurnToMe() {
-        final String key = keyInput.getText().toString().trim().toUpperCase();
+    private void resetTurnToMeAndRefresh() {
+        final String key = keyInput.getText().toString().trim().isEmpty() ? "DEFAULT_MELA" : keyInput.getText().toString().trim().toUpperCase();
+        saveToBothPrefs(key, customGayaInput.getText().toString());
         new Thread(() -> {
             try {
                 URL u = new URL(DEFAULT_SERVER + "/reset?key=" + Uri.encode(key));
                 u.openStream().close();
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(this, "🔄 Giliran di-reset kembali ke /me!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "🔄 Giliran di-reset ke /me & Tombol Ngambang dimatikan!", Toast.LENGTH_SHORT).show();
                     loadServerProfile();
+                    refreshLocalDebugPreview();
                 });
             } catch (Exception ignored) {}
         }).start();
     }
 
-    private void startFloatingCaptureService() {
+    private void requestAndStartFloatingBubble() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Izinkan 'Tampilkan di atas aplikasi lain' dulu!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Izinkan Tampilkan di atas aplikasi lain dulu!", Toast.LENGTH_LONG).show();
             startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName())), REQ_OVERLAY);
             return;
@@ -343,7 +307,7 @@ public class MainActivity extends Activity {
         if (mpm != null) {
             startActivityForResult(mpm.createScreenCaptureIntent(), REQ_PROJECTION);
         } else {
-            launchService(0, null);
+            launchFloatingService(0, null);
         }
     }
 
@@ -352,37 +316,46 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_OVERLAY) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
-                startFloatingCaptureService();
+                requestAndStartFloatingBubble();
             }
         } else if (requestCode == REQ_PROJECTION) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                launchService(resultCode, data);
+                launchFloatingService(resultCode, data);
             } else {
-                launchService(0, null);
+                launchFloatingService(0, null);
             }
         }
     }
 
-    private void launchService(int resultCode, Intent resultData) {
+    private void launchFloatingService(int resultCode, Intent resultData) {
+        String key = keyInput.getText().toString().trim().isEmpty() ? "DEFAULT_MELA" : keyInput.getText().toString().trim().toUpperCase();
+        String rule = customGayaInput.getText().toString().trim();
+        saveToBothPrefs(key, rule);
+
+        stopService(new Intent(this, FloatingOverlayService.class));
+
         Intent svc = new Intent(this, FloatingOverlayService.class);
         svc.putExtra("resultCode", resultCode);
+        svc.putExtra("api_key", key);
+        svc.putExtra("server_url", DEFAULT_SERVER);
         if (resultData != null) svc.putExtra("resultData", resultData);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(svc);
         } else {
             startService(svc);
         }
-        Toast.makeText(this, "📸 Tombol Ngambang Aktif! Tap 1x saat di SA-MP untuk langsung SS & Copy!", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "📸 Tombol SS Aktif! Tap 1x = Scan SS | Tahan 1 detik = Reset /me", Toast.LENGTH_LONG).show();
         moveTaskToBack(true);
     }
 
     private LinearLayout createCard() {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(34, 34, 34, 34);
+        card.setPadding(32, 32, 32, 32);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#111827"));
-        bg.setCornerRadius(32f);
+        bg.setCornerRadius(30f);
         bg.setStroke(2, Color.parseColor("#1f2937"));
         card.setBackground(bg);
         return card;
@@ -392,9 +365,9 @@ public class MainActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextColor(Color.parseColor("#9ca3af"));
-        tv.setTextSize(11.5f);
+        tv.setTextSize(11f);
         tv.setTypeface(Typeface.DEFAULT_BOLD);
-        tv.setPadding(0, 0, 0, 14);
+        tv.setPadding(0, 0, 0, 12);
         parent.addView(tv);
     }
 
@@ -404,7 +377,7 @@ public class MainActivity extends Activity {
         et.setHintTextColor(Color.parseColor("#6b7280"));
         et.setTextColor(Color.WHITE);
         et.setTextSize(13.5f);
-        et.setPadding(28, 24, 28, 24);
+        et.setPadding(26, 22, 26, 22);
         if (multiline) {
             et.setMinLines(3);
             et.setGravity(Gravity.TOP | Gravity.START);
@@ -413,7 +386,7 @@ public class MainActivity extends Activity {
         }
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#0b1120"));
-        bg.setCornerRadius(22f);
+        bg.setCornerRadius(20f);
         bg.setStroke(2, Color.parseColor("#374151"));
         et.setBackground(bg);
         return et;
@@ -425,10 +398,10 @@ public class MainActivity extends Activity {
         b.setTextColor(Color.parseColor(fgHex));
         b.setTextSize(13f);
         b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setPadding(24, 26, 24, 26);
+        b.setPadding(22, 26, 22, 26);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor(bgHex));
-        bg.setCornerRadius(24f);
+        bg.setCornerRadius(22f);
         b.setBackground(bg);
         return b;
     }
