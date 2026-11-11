@@ -18,16 +18,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle Resmi
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
 
-      - name: Susun Struktur Project & Compile APK
+      - name: Terima Lisensi Android SDK Bawaan & Compile APK
         run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
           mkdir -p app/src/main/java/com/chiwawa/autorp
           cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           cp MainActivity.java app/src/main/java/com/chiwawa/autorp/MainActivity.java
