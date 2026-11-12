@@ -1,4 +1,4 @@
-name: Build CHIWAWA AutoRP Overlay APK
+name: Build CHIWAWA Auto-Perapi SANA APK
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
           cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           cp MainActivity.java app/src/main/java/com/chiwawa/autorp/MainActivity.java
           cp FloatingOverlayService.java app/src/main/java/com/chiwawa/autorp/FloatingOverlayService.java
-          echo 'rootProject.name = "ChiwawaAutoRP"' > settings.gradle
+          echo 'rootProject.name = "ChiwawaPerapiSANA"' > settings.gradle
           echo 'include ":app"' >> settings.gradle
           echo 'buildscript { repositories { google(); mavenCentral() }; dependencies { classpath "com.android.tools.build:gradle:8.1.0" } }' > build.gradle
           echo 'allprojects { repositories { google(); mavenCentral() } }' >> build.gradle
@@ -42,8 +42,8 @@ jobs:
           echo '        applicationId "com.chiwawa.autorp"' >> app/build.gradle
           echo '        minSdk 23' >> app/build.gradle
           echo '        targetSdk 33' >> app/build.gradle
-          echo '        versionCode 4' >> app/build.gradle
-          echo '        versionName "4.0"' >> app/build.gradle
+          echo '        versionCode 6' >> app/build.gradle
+          echo '        versionName "6.0"' >> app/build.gradle
           echo '    }' >> app/build.gradle
           echo '    lintOptions { checkReleaseBuilds false; abortOnError false }' >> app/build.gradle
           echo '}' >> app/build.gradle
@@ -52,5 +52,5 @@ jobs:
       - name: Upload File APK Siap Install
         uses: actions/upload-artifact@v4
         with:
-          name: CHIWAWA-AutoRP-Overlay-APK
+          name: CHIWAWA-Perapi-SANA-APK
           path: app/build/outputs/apk/debug/app-debug.apk

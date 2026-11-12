@@ -52,7 +52,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 
 public class FloatingOverlayService extends Service {
-    private static final String CHANNEL_ID = "chiwawa_v4_channel";
+    private static final String CHANNEL_ID = "chiwawa_v6_sana";
     private static final String DEFAULT_SERVER = "http://64.235.41.53:5010";
 
     private WindowManager wm;
@@ -91,11 +91,8 @@ public class FloatingOverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         SharedPreferences p1 = getSharedPreferences("chiwawa_autorp_prefs", MODE_PRIVATE);
-        SharedPreferences p2 = getSharedPreferences("chiwawa_v3_prefs", MODE_PRIVATE);
-
         String k = intent != null ? intent.getStringExtra("api_key") : null;
-        if (k == null || k.trim().isEmpty()) k = p1.getString("api_key", "");
-        if (k == null || k.trim().isEmpty()) k = p2.getString("api_key", "");
+        if (k == null || k.trim().isEmpty()) k = p1.getString("api_key", "DEFAULT_MELA");
         activeApiKey = (k == null || k.trim().isEmpty()) ? "DEFAULT_MELA" : k.trim().toUpperCase();
 
         int resultCode = intent != null ? intent.getIntExtra("resultCode", 0) : 0;
@@ -103,28 +100,24 @@ public class FloatingOverlayService extends Service {
         boolean hasProj = (resultCode == Activity.RESULT_OK && resultData != null);
 
         startForegroundNotif(hasProj);
-        if (hasProj) {
-            initMediaProjection(resultCode, resultData);
-        }
+        if (hasProj) initMediaProjection(resultCode, resultData);
         return START_STICKY;
     }
 
     private void startForegroundNotif(boolean hasProj) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "CHIWAWA AutoRP", NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "CHIWAWA Perapi SANA", NotificationManager.IMPORTANCE_LOW);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(ch);
-
             Notification notif = new Notification.Builder(this, CHANNEL_ID)
-                    .setContentTitle("⚡ CHIWAWA AutoRP Aktif (" + activeApiKey + ")")
-                    .setContentText("Tap 1x 📸 = Scan SS | Tahan 1 detik = Reset /me")
+                    .setContentTitle("⚡ CHIWAWA Perapi SANA V6 Aktif")
+                    .setContentText("Tap 1x 📸 untuk baca & rapikan iklan otomatis")
                     .setSmallIcon(android.R.drawable.ic_menu_camera)
                     .build();
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasProj) {
-                startForeground(1004, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+                startForeground(1006, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
             } else {
-                startForeground(1004, notif);
+                startForeground(1006, notif);
             }
         }
     }
@@ -136,31 +129,21 @@ public class FloatingOverlayService extends Service {
             if (mpm == null) return;
             mediaProjection = mpm.getMediaProjection(code, data);
             if (mediaProjection == null) return;
-
             mediaProjection.registerCallback(new MediaProjection.Callback() {
                 @Override
                 public void onStop() { releaseProjection(); }
             }, mainHandler);
-
             DisplayMetrics dm = getResources().getDisplayMetrics();
             screenW = dm.widthPixels;
             screenH = dm.heightPixels;
             screenDensity = dm.densityDpi;
-
             imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-            virtualDisplay = mediaProjection.createVirtualDisplay(
-                    "ChiwawaV4Cap", screenW, screenH, screenDensity,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    imageReader.getSurface(), null, mainHandler
-            );
+            virtualDisplay = mediaProjection.createVirtualDisplay("ChiwawaV6Sana", screenW, screenH, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, mainHandler);
         } catch (Exception ignored) {}
     }
 
     private void initFloatingViews() {
-        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                : WindowManager.LayoutParams.TYPE_PHONE;
-
+        int type = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
         rootFloat = new LinearLayout(this);
         rootFloat.setOrientation(LinearLayout.HORIZONTAL);
         rootFloat.setGravity(Gravity.CENTER_VERTICAL);
@@ -175,7 +158,7 @@ public class FloatingOverlayService extends Service {
         rootFloat.addView(bubbleBtn, new LinearLayout.LayoutParams(px, px));
 
         statusPill = new TextView(this);
-        statusPill.setText("📸 SS OK!");
+        statusPill.setText("⚡ Siap");
         statusPill.setTextColor(Color.WHITE);
         statusPill.setTextSize(11.5f);
         statusPill.setTypeface(Typeface.DEFAULT_BOLD);
@@ -183,20 +166,11 @@ public class FloatingOverlayService extends Service {
         stylePill("#0f172a", "#00f5d4");
         statusPill.setVisibility(View.GONE);
 
-        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams pillLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         pillLp.setMargins(12, 0, 0, 0);
         rootFloat.addView(statusPill, pillLp);
 
-        params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                type,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-        );
+        params = new WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
         params.x = 24;
         params.y = 240;
@@ -206,13 +180,6 @@ public class FloatingOverlayService extends Service {
             private float touchX, touchY;
             private long downTs;
             private boolean dragged;
-            private boolean longPressTriggered;
-            private final Runnable longPressTask = () -> {
-                if (!dragged && !isBusy) {
-                    longPressTriggered = true;
-                    triggerQuickInGameReset();
-                }
-            };
 
             @Override
             public boolean onTouch(View v, MotionEvent ev) {
@@ -220,54 +187,29 @@ public class FloatingOverlayService extends Service {
                     case MotionEvent.ACTION_DOWN:
                         downTs = System.currentTimeMillis();
                         dragged = false;
-                        longPressTriggered = false;
                         initX = params.x;
                         initY = params.y;
                         touchX = ev.getRawX();
                         touchY = ev.getRawY();
-                        mainHandler.postDelayed(longPressTask, 850);
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         int dx = (int) (ev.getRawX() - touchX);
                         int dy = (int) (ev.getRawY() - touchY);
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                            dragged = true;
-                            mainHandler.removeCallbacks(longPressTask);
-                        }
+                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) dragged = true;
                         params.x = initX + dx;
                         params.y = initY + dy;
                         wm.updateViewLayout(rootFloat, params);
                         return true;
                     case MotionEvent.ACTION_UP:
-                    case MotionEvent.ACTION_CANCEL:
-                        mainHandler.removeCallbacks(longPressTask);
-                        if (!dragged && !longPressTriggered && (System.currentTimeMillis() - downTs) < 450) {
-                            captureAndSendToVisionAi();
+                        if (!dragged && (System.currentTimeMillis() - downTs) < 500) {
+                            captureAndFormatSanaAd();
                         }
                         return true;
                 }
                 return false;
             }
         });
-
         wm.addView(rootFloat, params);
-    }
-
-    private void triggerQuickInGameReset() {
-        vibrateShort();
-        SharedPreferences p = getSharedPreferences("chiwawa_autorp_prefs", MODE_PRIVATE);
-        String k = p.getString("api_key", activeApiKey);
-        final String key = (k == null || k.trim().isEmpty()) ? "DEFAULT_MELA" : k.trim().toUpperCase();
-        showFloatingPill("🔄 Mereset giliran ke /me...", "#0f172a", "#38bdf8", 0);
-        new Thread(() -> {
-            try {
-                URL u = new URL(activeServerUrl + "/reset?key=" + Uri.encode(key));
-                u.openStream().close();
-                showFloatingPill("✅ Giliran Di-Reset ke /me!", "#064e3b", "#10b981", 2800);
-            } catch (Exception e) {
-                showFloatingPill("⚠️ Gagal reset sinyal", "#7f1d1d", "#ef4444", 2500);
-            }
-        }).start();
     }
 
     private void styleBubble(String bgHex, String borderHex) {
@@ -299,13 +241,10 @@ public class FloatingOverlayService extends Service {
         });
     }
 
-    private boolean isBitmapValidAndNotBlack(Bitmap bm) {
+    private boolean isBitmapValid(Bitmap bm) {
         if (bm == null || bm.getWidth() < 50 || bm.getHeight() < 50) return false;
-        int w = bm.getWidth();
-        int h = bm.getHeight();
-        int nonBlack = 0;
-        int stepX = Math.max(1, w / 12);
-        int stepY = Math.max(1, h / 12);
+        int w = bm.getWidth(), h = bm.getHeight(), nonBlack = 0;
+        int stepX = Math.max(1, w / 12), stepY = Math.max(1, h / 12);
         for (int x = stepX; x < w; x += stepX) {
             for (int y = stepY; y < h; y += stepY) {
                 int p = bm.getPixel(x, y);
@@ -315,15 +254,13 @@ public class FloatingOverlayService extends Service {
         return nonBlack >= 8;
     }
 
-    private void captureAndSendToVisionAi() {
+    private void captureAndFormatSanaAd() {
         if (isBusy) return;
         isBusy = true;
         vibrateShort();
 
         SharedPreferences p = getSharedPreferences("chiwawa_autorp_prefs", MODE_PRIVATE);
-        String k = p.getString("api_key", activeApiKey);
-        final String key = (k == null || k.trim().isEmpty()) ? "DEFAULT_MELA" : k.trim().toUpperCase();
-
+        final String key = p.getString("api_key", activeApiKey);
         rootFloat.setAlpha(0f);
 
         mainHandler.postDelayed(() -> {
@@ -332,21 +269,14 @@ public class FloatingOverlayService extends Service {
 
             new Thread(() -> {
                 try {
-                    String srcLabel = "Live Screen";
                     Bitmap finalBm = liveBm;
-
-                    if (!isBitmapValidAndNotBlack(finalBm)) {
-                        finalBm = grabLatestGalleryScreenshot();
-                        srcLabel = "Galeri SS";
-                    }
-
-                    if (!isBitmapValidAndNotBlack(finalBm)) {
-                        saveDebugStatus(false, "⚠️ Izin rekam layar belum aktif. Buka APK & klik Simpan & Munculkan!", "");
+                    if (!isBitmapValid(finalBm)) finalBm = grabLatestGalleryScreenshot();
+                    if (!isBitmapValid(finalBm)) {
                         mainHandler.post(() -> {
                             isBusy = false;
                             bubbleBtn.setText("⚠️");
                             styleBubble("#ef4444", "#ffffff");
-                            showFloatingPill("⚠️ Klik Simpan & Munculkan di APK (Atau ambil 1x SS HP)", "#7f1d1d", "#ef4444", 4500);
+                            showFloatingPill("⚠️ Izin layar belum aktif / Ambil 1x SS", "#7f1d1d", "#ef4444", 4000);
                         });
                         return;
                     }
@@ -358,7 +288,7 @@ public class FloatingOverlayService extends Service {
                     }
 
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    finalBm.compress(Bitmap.CompressFormat.JPEG, 78, baos);
+                    finalBm.compress(Bitmap.CompressFormat.JPEG, 80, baos);
                     byte[] jpegBytes = baos.toByteArray();
                     int sizeKb = Math.max(1, jpegBytes.length / 1024);
 
@@ -370,7 +300,7 @@ public class FloatingOverlayService extends Service {
                     mainHandler.post(() -> {
                         bubbleBtn.setText("⏳");
                         styleBubble("#f59e0b", "#ffffff");
-                        showFloatingPill("📸 SS OK (" + sizeKb + "KB) ➔ ⏳ AI...", "#0f172a", "#38bdf8", 0);
+                        showFloatingPill("⚡ Neural V6 Merapikan Iklan...", "#0f172a", "#38bdf8", 0);
                     });
 
                     URL u = new URL(activeServerUrl + "/rp?key=" + Uri.encode(key));
@@ -391,129 +321,72 @@ public class FloatingOverlayService extends Service {
                     while ((line = br.readLine()) != null) sb.append(line);
                     br.close();
 
-                    final String rpOutput = sb.toString().trim();
-                    saveDebugStatus(
-                            true,
-                            "✅ SS BERHASIL (" + sizeKb + " KB • " + finalBm.getWidth() + "x" + finalBm.getHeight() + " • " + srcLabel + ")",
-                            rpOutput
-                    );
+                    final String adOutput = sb.toString().trim();
+                    p.edit().putBoolean("last_ss_ok", true).putString("last_ss_status", "✅ Iklan Dirapikan (" + sizeKb + " KB)").putString("last_rp_output", adOutput).apply();
 
                     mainHandler.post(() -> {
                         isBusy = false;
                         ClipboardManager cb = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                        if (cb != null) {
-                            cb.setPrimaryClip(ClipData.newPlainText("AutoRP", rpOutput));
-                        }
+                        if (cb != null) cb.setPrimaryClip(ClipData.newPlainText("SANA_AD", adOutput));
                         vibrateShort();
                         bubbleBtn.setText("✅");
                         styleBubble("#10b981", "#ffffff");
-
-                        String shortPrev = rpOutput.length() > 36 ? rpOutput.substring(0, 36) + "..." : rpOutput;
-                        showFloatingPill("✅ [" + sizeKb + "KB] " + shortPrev, "#064e3b", "#10b981", 4500);
-
+                        String shortPrev = adOutput.length() > 38 ? adOutput.substring(0, 38) + "..." : adOutput;
+                        showFloatingPill("✅ Disalin: " + shortPrev, "#064e3b", "#10b981", 4500);
                         mainHandler.postDelayed(() -> {
                             bubbleBtn.setText("📸");
                             styleBubble("#00f5d4", "#ffffff");
-                        }, 2000);
+                        }, 1800);
                     });
                 } catch (Exception e) {
-                    saveDebugStatus(false, "⚠️ Sinyal sibuk saat mengirim SS ke server.", "");
                     mainHandler.post(() -> {
                         isBusy = false;
                         bubbleBtn.setText("📸");
                         styleBubble("#ef4444", "#ffffff");
-                        showFloatingPill("⚠️ Server Sibuk, Tap 📸 Sekali Lagi", "#7f1d1d", "#ef4444", 3500);
+                        showFloatingPill("⚠️ Gagal baca iklan, tap 📸 lagi", "#7f1d1d", "#ef4444", 3500);
                     });
                 }
             }).start();
         }, 110);
     }
 
-    private void saveDebugStatus(boolean ok, String statusText, String rpOut) {
-        String[] prefNames = new String[]{"chiwawa_autorp_prefs", "chiwawa_v3_prefs"};
-        for (String pName : prefNames) {
-            SharedPreferences.Editor ed = getSharedPreferences(pName, MODE_PRIVATE).edit();
-            ed.putBoolean("last_ss_ok", ok);
-            ed.putString("last_ss_status", statusText);
-            if (rpOut != null && !rpOut.isEmpty()) ed.putString("last_rp_output", rpOut);
-            ed.apply();
-        }
-    }
-
     private Bitmap grabProjectionBitmap() {
         if (imageReader == null) return null;
         Image img = null;
         try {
-            DisplayMetrics dm = getResources().getDisplayMetrics();
-            if (dm.widthPixels != screenW || dm.heightPixels != screenH) {
-                screenW = dm.widthPixels;
-                screenH = dm.heightPixels;
-                if (virtualDisplay != null) {
-                    imageReader.close();
-                    imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-                    virtualDisplay.resize(screenW, screenH, dm.densityDpi);
-                    virtualDisplay.setSurface(imageReader.getSurface());
-                    Thread.sleep(90);
-                }
-            }
             img = imageReader.acquireLatestImage();
-            if (img == null) {
-                Thread.sleep(70);
-                img = imageReader.acquireLatestImage();
-            }
+            if (img == null) { Thread.sleep(70); img = imageReader.acquireLatestImage(); }
             if (img == null) return null;
-
-            int w = img.getWidth();
-            int h = img.getHeight();
+            int w = img.getWidth(), h = img.getHeight();
             Image.Plane[] planes = img.getPlanes();
             ByteBuffer buf = planes[0].getBuffer();
-            int pixelStride = planes[0].getPixelStride();
-            int rowStride = planes[0].getRowStride();
+            int pixelStride = planes[0].getPixelStride(), rowStride = planes[0].getRowStride();
             int rowPadding = rowStride - pixelStride * w;
-
             Bitmap bm = Bitmap.createBitmap(w + rowPadding / pixelStride, h, Bitmap.Config.ARGB_8888);
             bm.copyPixelsFromBuffer(buf);
             return Bitmap.createBitmap(bm, 0, 0, w, h);
-        } catch (Exception e) {
-            return null;
-        } finally {
-            if (img != null) {
-                try { img.close(); } catch (Exception ignored) {}
-            }
-        }
+        } catch (Exception e) { return null; }
+        finally { if (img != null) try { img.close(); } catch (Exception ignored) {} }
     }
 
     private Bitmap grabLatestGalleryScreenshot() {
         Cursor c = null;
         try {
             String[] proj = new String[]{MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_ADDED};
-            c = getContentResolver().query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    proj, null, null,
-                    MediaStore.Images.Media.DATE_ADDED + " DESC"
-            );
+            c = getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, proj, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
             if (c != null && c.moveToFirst()) {
                 long id = c.getLong(c.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                 Uri uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
                 InputStream is = getContentResolver().openInputStream(uri);
-                if (is != null) {
-                    Bitmap bm = BitmapFactory.decodeStream(is);
-                    is.close();
-                    return bm;
-                }
+                if (is != null) { Bitmap bm = BitmapFactory.decodeStream(is); is.close(); return bm; }
             }
-        } catch (Exception ignored) {
-        } finally {
-            if (c != null) c.close();
-        }
+        } catch (Exception ignored) {}
+        finally { if (c != null) c.close(); }
         return null;
     }
 
     private void vibrateShort() {
-        try {
-            Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (v != null) v.vibrate(40);
-        } catch (Exception ignored) {}
+        try { Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE); if (v != null) v.vibrate(40); } catch (Exception ignored) {}
     }
 
     private void releaseProjection() {
@@ -526,8 +399,6 @@ public class FloatingOverlayService extends Service {
     public void onDestroy() {
         super.onDestroy();
         releaseProjection();
-        if (rootFloat != null && wm != null) {
-            try { wm.removeView(rootFloat); } catch (Exception ignored) {}
-        }
+        if (rootFloat != null && wm != null) { try { wm.removeView(rootFloat); } catch (Exception ignored) {} }
     }
 }
