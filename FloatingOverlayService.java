@@ -52,7 +52,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 
 public class FloatingOverlayService extends Service {
-    private static final String CHANNEL_ID = "chiwawa_v6_sana";
+    private static final String CHANNEL_ID = "chiwawa_v7_sana";
     private static final String DEFAULT_SERVER = "http://64.235.41.53:5010";
 
     private WindowManager wm;
@@ -64,6 +64,7 @@ public class FloatingOverlayService extends Service {
     private MediaProjection mediaProjection;
     private VirtualDisplay virtualDisplay;
     private ImageReader imageReader;
+    private Bitmap lastValidFrameCache;
     private int screenW;
     private int screenH;
     private int screenDensity;
@@ -81,11 +82,20 @@ public class FloatingOverlayService extends Service {
         super.onCreate();
         mainHandler = new Handler(Looper.getMainLooper());
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        DisplayMetrics dm = getResources().getDisplayMetrics();
+        updateRealScreenMetrics();
+        initFloatingViews();
+    }
+
+    private void updateRealScreenMetrics() {
+        DisplayMetrics dm = new DisplayMetrics();
+        if (wm != null && wm.getDefaultDisplay() != null) {
+            wm.getDefaultDisplay().getRealMetrics(dm);
+        } else {
+            dm = getResources().getDisplayMetrics();
+        }
         screenW = dm.widthPixels;
         screenH = dm.heightPixels;
         screenDensity = dm.densityDpi;
-        initFloatingViews();
     }
 
     @Override
@@ -110,14 +120,14 @@ public class FloatingOverlayService extends Service {
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) nm.createNotificationChannel(ch);
             Notification notif = new Notification.Builder(this, CHANNEL_ID)
-                    .setContentTitle("⚡ CHIWAWA Perapi SANA V6 Aktif")
-                    .setContentText("Tap 1x 📸 untuk baca & rapikan iklan otomatis")
+                    .setContentTitle("⚡ CHIWAWA Vision V7 Aktif")
+                    .setContentText("Tap 1x 📸 untuk baca & rapikan iklan SANA otomatis")
                     .setSmallIcon(android.R.drawable.ic_menu_camera)
                     .build();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasProj) {
-                startForeground(1006, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+                startForeground(1007, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
             } else {
-                startForeground(1006, notif);
+                startForeground(1007, notif);
             }
         }
     }
@@ -133,12 +143,9 @@ public class FloatingOverlayService extends Service {
                 @Override
                 public void onStop() { releaseProjection(); }
             }, mainHandler);
-            DisplayMetrics dm = getResources().getDisplayMetrics();
-            screenW = dm.widthPixels;
-            screenH = dm.heightPixels;
-            screenDensity = dm.densityDpi;
+            updateRealScreenMetrics();
             imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
-            virtualDisplay = mediaProjection.createVirtualDisplay("ChiwawaV6Sana", screenW, screenH, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, mainHandler);
+            virtualDisplay = mediaProjection.createVirtualDisplay("ChiwawaV7Sana", screenW, screenH, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, mainHandler);
         } catch (Exception ignored) {}
     }
 
@@ -244,14 +251,14 @@ public class FloatingOverlayService extends Service {
     private boolean isBitmapValid(Bitmap bm) {
         if (bm == null || bm.getWidth() < 50 || bm.getHeight() < 50) return false;
         int w = bm.getWidth(), h = bm.getHeight(), nonBlack = 0;
-        int stepX = Math.max(1, w / 12), stepY = Math.max(1, h / 12);
+        int stepX = Math.max(1, w / 14), stepY = Math.max(1, h / 14);
         for (int x = stepX; x < w; x += stepX) {
             for (int y = stepY; y < h; y += stepY) {
                 int p = bm.getPixel(x, y);
                 if (Color.red(p) > 12 || Color.green(p) > 12 || Color.blue(p) > 12) nonBlack++;
             }
         }
-        return nonBlack >= 8;
+        return nonBlack >= 10;
     }
 
     private void captureAndFormatSanaAd() {
@@ -264,13 +271,18 @@ public class FloatingOverlayService extends Service {
         rootFloat.setAlpha(0f);
 
         mainHandler.postDelayed(() -> {
-            Bitmap liveBm = grabProjectionBitmap();
-            rootFloat.setAlpha(1f);
-
             new Thread(() -> {
                 try {
+                    Bitmap liveBm = grabProjectionBitmapWithLandscapeFix();
+                    mainHandler.post(() -> rootFloat.setAlpha(1f));
+
                     Bitmap finalBm = liveBm;
-                    if (!isBitmapValid(finalBm)) finalBm = grabLatestGalleryScreenshot();
+                    if (!isBitmapValid(finalBm) && isBitmapValid(lastValidFrameCache)) {
+                        finalBm = lastValidFrameCache;
+                    }
+                    if (!isBitmapValid(finalBm)) {
+                        finalBm = grabLatestGalleryScreenshot();
+                    }
                     if (!isBitmapValid(finalBm)) {
                         mainHandler.post(() -> {
                             isBusy = false;
@@ -281,14 +293,18 @@ public class FloatingOverlayService extends Service {
                         return;
                     }
 
-                    int maxW = 1152;
-                    if (finalBm.getWidth() > maxW) {
-                        int newH = Math.round((float) finalBm.getHeight() * maxW / finalBm.getWidth());
-                        finalBm = Bitmap.createScaledBitmap(finalBm, maxW, newH, true);
+                    lastValidFrameCache = finalBm;
+
+                    int maxDim = 1280;
+                    if (finalBm.getWidth() > maxDim || finalBm.getHeight() > maxDim) {
+                        float ratio = Math.min((float) maxDim / finalBm.getWidth(), (float) maxDim / finalBm.getHeight());
+                        int newW = Math.round(finalBm.getWidth() * ratio);
+                        int newH = Math.round(finalBm.getHeight() * ratio);
+                        finalBm = Bitmap.createScaledBitmap(finalBm, newW, newH, true);
                     }
 
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    finalBm.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+                    finalBm.compress(Bitmap.CompressFormat.JPEG, 86, baos);
                     byte[] jpegBytes = baos.toByteArray();
                     int sizeKb = Math.max(1, jpegBytes.length / 1024);
 
@@ -300,15 +316,15 @@ public class FloatingOverlayService extends Service {
                     mainHandler.post(() -> {
                         bubbleBtn.setText("⏳");
                         styleBubble("#f59e0b", "#ffffff");
-                        showFloatingPill("⚡ Neural V6 Merapikan Iklan...", "#0f172a", "#38bdf8", 0);
+                        showFloatingPill("⚡ Membaca & Merapikan Iklan...", "#0f172a", "#38bdf8", 0);
                     });
 
                     URL u = new URL(activeServerUrl + "/rp?key=" + Uri.encode(key));
                     HttpURLConnection conn = (HttpURLConnection) u.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setRequestProperty("Content-Type", "image/jpeg");
-                    conn.setConnectTimeout(22000);
-                    conn.setReadTimeout(22000);
+                    conn.setConnectTimeout(18000);
+                    conn.setReadTimeout(18000);
                     conn.setDoOutput(true);
 
                     OutputStream os = conn.getOutputStream();
@@ -322,7 +338,7 @@ public class FloatingOverlayService extends Service {
                     br.close();
 
                     final String adOutput = sb.toString().trim();
-                    p.edit().putBoolean("last_ss_ok", true).putString("last_ss_status", "✅ Iklan Dirapikan (" + sizeKb + " KB)").putString("last_rp_output", adOutput).apply();
+                    p.edit().putBoolean("last_ss_ok", true).putString("last_ss_status", "✅ Iklan Dirapikan (" + sizeKb + " KB • " + finalBm.getWidth() + "x" + finalBm.getHeight() + ")").putString("last_rp_output", adOutput).apply();
 
                     mainHandler.post(() -> {
                         isBusy = false;
@@ -331,42 +347,67 @@ public class FloatingOverlayService extends Service {
                         vibrateShort();
                         bubbleBtn.setText("✅");
                         styleBubble("#10b981", "#ffffff");
-                        String shortPrev = adOutput.length() > 38 ? adOutput.substring(0, 38) + "..." : adOutput;
+                        String shortPrev = adOutput.length() > 40 ? adOutput.substring(0, 40) + "..." : adOutput;
                         showFloatingPill("✅ Disalin: " + shortPrev, "#064e3b", "#10b981", 4500);
                         mainHandler.postDelayed(() -> {
                             bubbleBtn.setText("📸");
                             styleBubble("#00f5d4", "#ffffff");
-                        }, 1800);
+                        }, 1600);
                     });
                 } catch (Exception e) {
                     mainHandler.post(() -> {
+                        rootFloat.setAlpha(1f);
                         isBusy = false;
                         bubbleBtn.setText("📸");
                         styleBubble("#ef4444", "#ffffff");
-                        showFloatingPill("⚠️ Gagal baca iklan, tap 📸 lagi", "#7f1d1d", "#ef4444", 3500);
+                        showFloatingPill("⚠️ Coba tap 📸 sekali lagi", "#7f1d1d", "#ef4444", 3000);
                     });
                 }
             }).start();
-        }, 110);
+        }, 90);
     }
 
-    private Bitmap grabProjectionBitmap() {
-        if (imageReader == null) return null;
-        Image img = null;
+    private Bitmap grabProjectionBitmapWithLandscapeFix() {
+        if (imageReader == null || virtualDisplay == null) return null;
         try {
-            img = imageReader.acquireLatestImage();
-            if (img == null) { Thread.sleep(70); img = imageReader.acquireLatestImage(); }
-            if (img == null) return null;
-            int w = img.getWidth(), h = img.getHeight();
-            Image.Plane[] planes = img.getPlanes();
-            ByteBuffer buf = planes[0].getBuffer();
-            int pixelStride = planes[0].getPixelStride(), rowStride = planes[0].getRowStride();
-            int rowPadding = rowStride - pixelStride * w;
-            Bitmap bm = Bitmap.createBitmap(w + rowPadding / pixelStride, h, Bitmap.Config.ARGB_8888);
-            bm.copyPixelsFromBuffer(buf);
-            return Bitmap.createBitmap(bm, 0, 0, w, h);
-        } catch (Exception e) { return null; }
-        finally { if (img != null) try { img.close(); } catch (Exception ignored) {} }
+            DisplayMetrics dm = new DisplayMetrics();
+            wm.getDefaultDisplay().getRealMetrics(dm);
+            if (dm.widthPixels != screenW || dm.heightPixels != screenH) {
+                screenW = dm.widthPixels;
+                screenH = dm.heightPixels;
+                screenDensity = dm.densityDpi;
+                mainHandler.post(() -> {
+                    try {
+                        if (imageReader != null) imageReader.close();
+                        imageReader = ImageReader.newInstance(screenW, screenH, PixelFormat.RGBA_8888, 2);
+                        virtualDisplay.resize(screenW, screenH, screenDensity);
+                        virtualDisplay.setSurface(imageReader.getSurface());
+                    } catch (Exception ignored) {}
+                });
+                Thread.sleep(220);
+            }
+
+            for (int i = 0; i < 4; i++) {
+                Image img = imageReader.acquireLatestImage();
+                if (img != null) {
+                    try {
+                        int w = img.getWidth(), h = img.getHeight();
+                        Image.Plane[] planes = img.getPlanes();
+                        ByteBuffer buf = planes[0].getBuffer();
+                        int pixelStride = planes[0].getPixelStride(), rowStride = planes[0].getRowStride();
+                        int rowPadding = rowStride - pixelStride * w;
+                        Bitmap bm = Bitmap.createBitmap(w + rowPadding / pixelStride, h, Bitmap.Config.ARGB_8888);
+                        bm.copyPixelsFromBuffer(buf);
+                        Bitmap cropped = Bitmap.createBitmap(bm, 0, 0, w, h);
+                        if (isBitmapValid(cropped)) return cropped;
+                    } finally {
+                        try { img.close(); } catch (Exception ignored) {}
+                    }
+                }
+                Thread.sleep(65);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private Bitmap grabLatestGalleryScreenshot() {

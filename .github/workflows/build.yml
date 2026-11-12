@@ -42,8 +42,8 @@ jobs:
           echo '        applicationId "com.chiwawa.autorp"' >> app/build.gradle
           echo '        minSdk 23' >> app/build.gradle
           echo '        targetSdk 33' >> app/build.gradle
-          echo '        versionCode 6' >> app/build.gradle
-          echo '        versionName "6.0"' >> app/build.gradle
+          echo '        versionCode 7' >> app/build.gradle
+          echo '        versionName "7.0"' >> app/build.gradle
           echo '    }' >> app/build.gradle
           echo '    lintOptions { checkReleaseBuilds false; abortOnError false }' >> app/build.gradle
           echo '}' >> app/build.gradle

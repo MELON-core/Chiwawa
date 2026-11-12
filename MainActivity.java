@@ -82,14 +82,14 @@ public class MainActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView brand = new TextView(this);
-        brand.setText("⚡ CHIWAWA SANA V6");
+        brand.setText("⚡ CHIWAWA VISION V7");
         brand.setTextColor(Color.parseColor("#00f5d4"));
         brand.setTextSize(16f);
         brand.setTypeface(Typeface.DEFAULT_BOLD);
         header.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         statusBadge = new TextView(this);
-        statusBadge.setText("🟢 NEURAL READY");
+        statusBadge.setText("🟢 PURE IMAGE AI");
         statusBadge.setTextColor(Color.parseColor("#34d399"));
         statusBadge.setTextSize(11f);
         statusBadge.setTypeface(Typeface.DEFAULT_BOLD);
@@ -134,7 +134,7 @@ public class MainActivity extends Activity {
         addSpacer(root, 18);
 
         LinearLayout manualCard = createCard();
-        addLabel(manualCard, "✨ PERAPI TEKS MANUAL & HASIL AUTO-COPY");
+        addLabel(manualCard, "⚡ PERAPI TEKS INSTAN & HASIL AUTO-COPY");
         manualAdInput = createInput("Ketik iklan mentah jika ingin merapikan tanpa SS...", false);
         manualCard.addView(manualAdInput);
 
@@ -154,7 +154,7 @@ public class MainActivity extends Activity {
 
         addSpacer(manualCard, 14);
         lastAdBox = new TextView(this);
-        lastAdBox.setText("Satu Unit Kendaraan Import Sport. Ada? Hubungi Saya!");
+        lastAdBox.setText("Satu Unit Kendaraan Sadler Berspeksifikasi Full Upgrade. Ada? Hubungi Saya!");
         lastAdBox.setTextColor(Color.parseColor("#fde047"));
         lastAdBox.setTextSize(12.5f);
         lastAdBox.setTypeface(Typeface.MONOSPACE);
@@ -208,24 +208,21 @@ public class MainActivity extends Activity {
 
     private void formatManualText(final String adType) {
         final String raw = manualAdInput.getText().toString().trim();
-        final String rule = customRuleInput.getText().toString().trim();
         if (raw.isEmpty()) {
             Toast.makeText(this, "Ketik teks iklan dulu!", Toast.LENGTH_SHORT).show();
             return;
         }
-        lastAdBox.setText("⏳ Merapikan dengan CHIWAWA Neural V6...");
         new Thread(() -> {
             try {
                 URL u = new URL(DEFAULT_SERVER + "/api/format-text");
                 HttpURLConnection conn = (HttpURLConnection) u.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setConnectTimeout(12000);
+                conn.setConnectTimeout(8000);
                 conn.setDoOutput(true);
                 JSONObject body = new JSONObject();
                 body.put("text", raw);
                 body.put("adType", adType);
-                body.put("customRule", rule);
                 OutputStream os = conn.getOutputStream();
                 os.write(body.toString().getBytes("UTF-8"));
                 os.close();
@@ -240,7 +237,7 @@ public class MainActivity extends Activity {
                     lastAdBox.setText(out);
                     ClipboardManager cb = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                     if (cb != null) cb.setPrimaryClip(ClipData.newPlainText("SANA_AD", out));
-                    Toast.makeText(MainActivity.this, "✅ Dirapikan & Otomatis Disalin!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "⚡ Dirapikan Instan & Disalin!", Toast.LENGTH_SHORT).show();
                 });
             } catch (Exception e) {
                 new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(MainActivity.this, "⚠️ Gagal menghubungi server", Toast.LENGTH_SHORT).show());
@@ -274,7 +271,7 @@ public class MainActivity extends Activity {
     private void refreshLocalDebugPreview() {
         String statusNote = prefs.getString("last_ss_status", "⏳ Tap 1x tombol 📸 saat kotak Ads terbuka di game");
         boolean ssOk = prefs.getBoolean("last_ss_ok", true);
-        String lastAd = prefs.getString("last_rp_output", "Satu Unit Kendaraan Import Sport. Ada? Hubungi Saya!");
+        String lastAd = prefs.getString("last_rp_output", "Satu Unit Kendaraan Sadler Berspeksifikasi Full Upgrade. Ada? Hubungi Saya!");
         ssProofBanner.setText(statusNote);
         ssProofBanner.setTextColor(Color.parseColor(ssOk ? "#34d399" : "#f87171"));
         lastAdBox.setText(lastAd);
@@ -320,7 +317,7 @@ public class MainActivity extends Activity {
         if (resultData != null) svc.putExtra("resultData", resultData);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svc);
         else startService(svc);
-        Toast.makeText(this, "📸 Perapi SANA V6 Aktif! Tap 1x tombol 📸 saat dialog iklan terbuka!", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "📸 Perapi SANA V7 Aktif! Tap 1x tombol 📸 saat dialog iklan terbuka!", Toast.LENGTH_LONG).show();
         moveTaskToBack(true);
     }
 
