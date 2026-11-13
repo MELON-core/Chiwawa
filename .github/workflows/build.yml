@@ -1,4 +1,4 @@
-name: Build CHIWAWA Auto-Perapi SANA APK V8.5
+name: Build CHIWAWA Auto-Perapi SANA APK V9.0
 on:
   push:
     branches: [ "main", "master" ]
@@ -18,7 +18,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
-      - name: Compile APK V8.5
+      - name: Compile APK V9.0
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           mkdir -p app/src/main/java/com/chiwawa/autorp
@@ -30,7 +30,7 @@ jobs:
           echo 'buildscript { repositories { google(); mavenCentral() }; dependencies { classpath "com.android.tools.build:gradle:8.1.0" } }' > build.gradle
           echo 'allprojects { repositories { google(); mavenCentral() } }' >> build.gradle
           echo 'plugins { id "com.android.application" }' > app/build.gradle
-          echo 'android { namespace "com.chiwawa.autorp"; compileSdk 34; defaultConfig { applicationId "com.chiwawa.autorp"; minSdk 23; targetSdk 33; versionCode 85; versionName "8.5" }; lintOptions { checkReleaseBuilds false; abortOnError false } }' >> app/build.gradle
+          echo 'android { namespace "com.chiwawa.autorp"; compileSdk 34; defaultConfig { applicationId "com.chiwawa.autorp"; minSdk 23; targetSdk 33; versionCode 90; versionName "9.0" }; lintOptions { checkReleaseBuilds false; abortOnError false } }' >> app/build.gradle
           gradle assembleDebug --no-daemon
       - name: Upload File APK Siap Install
         uses: actions/upload-artifact@v4
